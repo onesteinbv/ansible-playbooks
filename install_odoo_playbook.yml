@@ -1,6 +1,6 @@
 ---
   - name: install odoo
-    hosts: odoo-vm
+    hosts: "{{ target }}"
     tasks:
       - name: Architecture
         debug:
