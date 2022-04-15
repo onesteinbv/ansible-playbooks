@@ -101,7 +101,7 @@
           owner: odoo
           recurse: yes
           state: directory
-      - name: Change permessions on odoo home directory
+      - name: Change permissions on odoo home directory
         file:
           path: /opt/odoo
           recurse: yes
