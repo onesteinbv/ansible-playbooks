@@ -131,11 +131,15 @@
           state: latest
       - block:
         - name: Install Certbot
-          apt:
-            name:
-              - certbot
-              - python-certbot-nginx
-            state: latest
+          snap:
+            name: certbot
+            classic: yes
+            state: present
+        - name: Make sure certbot command can be run
+          file:
+            dest: /usr/bin/certbot
+            src: /snap/bin/certbot
+            state: link
         - name: Install certificate
           shell: certbot certonly --nginx --preferred-challenges http -d {{ domain }} -n --agree-tos --email {{ email }}
           become: yes
