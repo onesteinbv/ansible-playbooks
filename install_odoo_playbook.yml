@@ -1,0 +1,203 @@
+---
+  - name: install odoo
+    hosts: odoo-vm
+    tasks:
+      - name: Architecture
+        debug:
+          var: ansible_machine
+      - name: Number of cores
+        debug:
+          var: ansible_processor_cores          
+      - name: install python and PyPi
+        apt:
+          name: 
+            - python3 
+            - python3-pip
+          state: latest
+          update_cache: yes
+      - name: install apt packages
+        apt:
+          name: 
+            - libpq-dev
+            - libsasl2-dev
+            - python3-dev
+            - libldap2-dev
+            - libssl-dev
+            - acl
+          state: latest
+      - name: install Postgres
+        apt:
+          name: postgresql
+          state: latest
+      - name: clone odoo
+        git:
+          clone: yes
+          update: no
+          repo: https://github.com/odoo/odoo.git
+          dest: /opt/odoo/odoo-server
+          version: "{{ version | default('15.0', true) }}"
+          depth: 1
+      - name: install pip packages
+        pip:
+          requirements: /opt/odoo/odoo-server/requirements.txt
+          state: present
+      - name: create odoo user in postgres
+        become_user: postgres
+        postgresql_user:
+          name: odoo
+          role_attr_flags: CREATEDB
+          state: present
+      - block:
+        - name: Download wkhtmltopdf (64)
+          get_url:
+            url: https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.bionic_amd64.deb
+            dest: ~/wkhtmltopdf.deb
+          when: ansible_machine == "x86_64"
+        - name: Download wkhtmltopdf (32)
+          get_url:
+            url: https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.bionic_i386.deb
+            dest: ~/wkhtmltopdf.deb
+          when: ansible_machine != "x86_64"
+        - name: Install wkhtmltopdf
+          apt:
+            deb: ~/wkhtmltopdf.deb
+        - name: Create symbolic link (/usr/local/bin/wkhtmltopdf)
+          file:
+            dest: /usr/bin/wkhtmltopdf
+            src: /usr/local/bin/wkhtmltopdf
+            state: link
+        - name: Create symbolic link (/usr/local/bin/wkhtmltoimage)
+          file:
+            dest: /usr/bin/wkhtmltoimage
+            src: /usr/local/bin/wkhtmltoimage
+            state: link
+      - name: Create odoo group
+        group:
+          name: odoo
+          state: present
+          system: yes
+      - name: Create odoo system user
+        user:
+          name: odoo
+          home: /opt/odoo
+          shell: /bin/bash
+          system: yes
+          group: odoo
+          state: present
+          comment: Odoo
+          groups:
+            - sudo
+            - odoo
+      - name: Create odoo log directory
+        file:
+          path: /var/log/odoo
+          group: odoo
+          owner: odoo
+          state: directory
+      - name: Create custom addons directory
+        file:
+          path: /opt/odoo/custom/addons
+          group: odoo
+          owner: odoo
+          recurse: yes
+          state: directory
+      - name: Change permessions on odoo home directory
+        file:
+          path: /opt/odoo
+          recurse: yes
+          group: odoo
+          owner: odoo
+          state: directory
+      - name: Create odoo config
+        template:
+          src: templates/odoo-server.conf
+          dest: /etc/odoo-server.conf
+          owner: odoo
+          group: odoo
+      - name: Create odoo service
+        template:
+          src: templates/odoo-server.service
+          dest: /etc/systemd/system/odoo-server.service
+      - name: Start odoo service
+        systemd:
+          name: odoo-server.service
+          scope: system
+          enabled: yes
+          daemon_reload: yes
+          state: started
+      - name: Install NGINX
+        apt:
+          name: nginx
+          state: latest
+      - block:
+        - name: Install Certbot
+          apt:
+            name:
+              - certbot
+              - python-certbot-nginx
+            state: latest
+        - name: Install certificate
+          shell: certbot certonly --nginx --preferred-challenges http -d {{ domain }} -n --agree-tos --email {{ email }}
+          become: yes
+        when: "domain|default(false, true)"
+      - name: Create NGINX config
+        template:
+          src: templates/odoo-nginx
+          dest: /etc/nginx/sites-available/odoo
+      - name: Make config enabled
+        file:
+          src: /etc/nginx/sites-available/odoo
+          dest: /etc/nginx/sites-enabled/odoo
+          state: link
+      - name: Reload NGINX service
+        service:
+          name: nginx
+          state: reloaded
+      - block:
+        - name: UFW - Allow SSH
+          ufw:
+            rule: allow
+            port: "22"
+        - name: UFW - Allow HTTP
+          ufw:
+            rule: allow
+            port: "80"
+        - name: UFW - Allow HTTPS
+          ufw:
+            rule: allow
+            port: "443"
+          when: "domain|default(false, true)"
+        - name: UFW - Enable
+          ufw:
+            default: deny
+            state: enabled
+            logging: on
+      - name: Create logrotate configuration
+        template:
+          src: templates/odoo-logrotate
+          dest: /etc/logrotate.d/odoo
+      - name: Install fail2ban
+        apt:
+          name: fail2ban
+          state: latest
+      - block:
+        - name: fail2ban - Create Jail
+          template:
+            src: templates/fail2ban/jail.local
+            dest: /etc/fail2ban/jail.local
+        - name: fail2ban - Login filter
+          template:
+            src: templates/fail2ban/filters/odoo-login.conf
+            dest: /etc/fail2ban/filter.d/odoo-login.conf
+        - name: fail2ban - Reset password filter
+          template:
+            src: templates/fail2ban/filters/odoo-reset-password.conf
+            dest: /etc/fail2ban/filter.d/odoo-reset-password.conf
+        - name: fail2ban - Signup filter
+          template:
+            src: templates/fail2ban/filters/odoo-signup.conf
+            dest: /etc/fail2ban/filter.d/odoo-signup.conf
+      - name: Reload fail2ban
+        systemd:
+          name: fail2ban
+          state: restarted

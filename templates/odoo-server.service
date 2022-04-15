@@ -1,0 +1,11 @@
+[Unit]
+Description=Odoo
+After=network.target
+
+[Service]
+Type=simple
+User=odoo
+ExecStart=/usr/bin/python3 /opt/odoo/odoo-server/odoo-bin -c /etc/odoo-server.conf
+
+[Install]
+WantedBy=multi-user.target

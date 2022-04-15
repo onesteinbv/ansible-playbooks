@@ -1,0 +1,29 @@
+[odoo-login]
+enabled = true
+bantime = 900
+maxretry = 10
+findtime = 60
+filter = odoo-login
+action = ufw
+logpath = /var/log/odoo/odoo-server.log
+logtimezone = UTC
+
+[odoo-reset-password]
+enabled = true
+bantime = 3600
+maxretry = 5
+findtime = 60
+filter = odoo-reset-password
+action = ufw
+logpath = /var/log/odoo/odoo-server.log
+logtimezone = UTC
+
+[odoo-signup]
+enabled = true
+bantime = 3600
+maxretry = 5
+findtime = 60
+filter = odoo-signup
+action = ufw
+logpath = /var/log/odoo/odoo-server.log
+logtimezone = UTC

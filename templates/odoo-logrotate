@@ -1,0 +1,7 @@
+/var/log/odoo/odoo-server.log {
+    daily
+    rotate 60
+    compress
+    delaycompress
+    create 0640 odoo odoo
+}
