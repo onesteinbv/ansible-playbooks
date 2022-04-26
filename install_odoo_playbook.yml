@@ -7,11 +7,20 @@
           var: ansible_machine
       - name: Number of cores
         debug:
-          var: ansible_processor_cores          
+          var: ansible_processor_cores
+      - name: Distribution
+        debug:
+          var: ansible_distribution
+      - name: Distribution Version
+        debug:
+          var: ansible_distribution_major_version
+      - name: End play for machines not running Ubuntu 20
+        meta: end_play
+        when: ansible_distribution != "Ubuntu" or ansible_distribution_major_version != "20"
       - name: install python and PyPi
         apt:
           name: 
-            - python3 
+            - python3
             - python3-pip
           state: latest
           update_cache: yes
@@ -205,3 +214,22 @@
         systemd:
           name: fail2ban
           state: restarted
+      - block:
+        - name: Install autopostgresqlbackup
+          apt:
+            name: autopostgresqlbackup
+            state: latest
+        - name: Configure autopostgresqlbackup
+          template:
+            src: templates/autopostgresqlbackup
+            dest: /etc/default/autopostgresqlbackup
+        - name: Copy backup script
+          template:
+            src: templates/backup-odoo-filestore
+            dest: /etc/backup-odoo-filestore
+            mode: 0550
+        - name: Create filestore backup directory
+          file:
+            path: /opt/odoo/backup/filestore/
+            state: directory
+

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+BACKUP_DIR="/opt/odoo/backup/filestore"
+ODOO_DATA_DIR="/opt/odoo/.local/share/Odoo"
+FILESTORE_DIR="filestore"
+DATE=$(date '+%Y%m%d%H%M%S')
+ROTATE=7
+
+tar czf "$BACKUP_DIR/filestore-$DATE.tar.gz" -C "$ODOO_DATA_DIR" "$FILESTORE_DIR"
+
+shopt -s extglob
+# Delete old backups
+LATEST=$(ls -tr /opt/odoo/backup/filestore | tail -$ROTATE)
+find /opt/odoo/backup/filestore -name "*.tar.gz" $(printf "! -name %s " $LATEST) -delete
