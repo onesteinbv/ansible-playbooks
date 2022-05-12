@@ -26,4 +26,6 @@ Odoo installation playbook
 
 .. code-block::
 
+    git clone git@github.com:onesteinbv/ansible-playbooks.git onestein-ansible-playbooks
+    cd onestein-ansible-playbooks
     ansible-playbook install_odoo_playbook.yml -e target=odoo-vm -e domain=odoo.mycompany.com -e email=info@mycompany.com
