@@ -51,6 +51,7 @@
           requirements: /opt/odoo/odoo-server/requirements.txt
           state: present
       - name: create odoo user in postgres
+        become: true
         become_user: postgres
         postgresql_user:
           name: odoo
