@@ -163,6 +163,10 @@
           src: /etc/nginx/sites-available/odoo
           dest: /etc/nginx/sites-enabled/odoo
           state: link
+      - name: Disable default site configuration
+        file:
+          path: /etc/nginx/sites-enabled/default
+          state: absent
       - name: Reload NGINX service
         service:
           name: nginx
